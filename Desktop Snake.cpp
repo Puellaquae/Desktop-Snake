@@ -36,8 +36,8 @@ while(0)
 #define X2P(pos) (pos * stepX + offsetX)
 #define Y2P(pos) (pos * stepY + offsetY)
 int delay = 100;
-int stepX = 80;
-int stepY = 80;
+int stepX = 70;
+int stepY = 70;
 bool playing = false;
 int moveDirect = DIRECT_NONE;
 DWORD WINAPI KeyProc(LPVOID args)
@@ -120,6 +120,7 @@ BOOL WINAPI BeforeExit(DWORD dwCtrlType)
 }
 int main()
 {
+	//std::cin >> stepX >> stepY;
 	//ShowWindow(GetForegroundWindow(),false);
 	SetConsoleCtrlHandler(BeforeExit, TRUE);
 	HWND hParent = ::FindWindow("Progman", "Program Manager");
@@ -148,16 +149,7 @@ int main()
 	playing = true;
 	DWORD processId;
 	GetWindowThreadProcessId(hSysListView32, &processId);
-	HANDLE hProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_READ, FALSE, processId);
-	/*
-	PVOID prect = VirtualAllocEx(hProcess, NULL, sizeof(RECT), MEM_COMMIT, PAGE_READWRITE);
-	RECT rect;
-	ListView_GetItemRect(hSysListView32, 0, prect, LVIR_ICON);
-	ReadProcessMemory(hProcess, prect, &rect, sizeof(RECT), NULL);
-	stepX = rect.right - rect.left;
-	stepY = rect.bottom - rect.top;
-	VirtualFreeEx(hProcess, prect, 0, MEM_RELEASE);
-	*/
+	HANDLE hProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, FALSE, processId);
 	LPVOID ori = VirtualAllocEx(hProcess, NULL, sizeof(POINT), MEM_COMMIT, PAGE_READWRITE);
 	for (int i = 0; i < iconCnt; i++)
 	{
@@ -175,8 +167,10 @@ int main()
 	int foodBlockY = 0;
 	int headerBlockX = 0;
 	int headerBlockY = 0;
+	clock_t watch;
 	while (playing)
 	{
+		watch = clock();
 		if (!newFood && headerBlockX == foodBlockX && headerBlockY == foodBlockY)
 		{
 			snakeLen++;
@@ -196,7 +190,7 @@ int main()
 					break;
 				}
 			}
-			 newFood = true;
+			newFood = true;
 		}
 		if (newFood)
 		{
@@ -241,7 +235,7 @@ int main()
 		}
 		ListView_RedrawItems(hSysListView32, 0, iconCnt - 1);
 		::UpdateWindow(hSysListView32);
-		Sleep(delay);
+		Sleep((delay - clock() + watch) > 0 ? (delay - clock() + watch) : 0);
 	}
 	RecoveryIcon();
 	delete[] snakes;
