@@ -1,4 +1,5 @@
 ﻿#include <windows.h>
+#include <windef.h>
 #include <commctrl.h>
 #include <cmath>
 #include <iostream>
@@ -18,8 +19,10 @@
 #define SNAKE_BODY 2
 #define SNAKE_HEADER 1
 #define NOT_SNAKE 0
+#define SHOW_WINDOWS
 #define NewGame() \
 do{\
+    moveDirect = DIRECT_NONE;\
     snakeLen = 1;\
     snakeTailIndex = 0;\
     snakeHeaderIndex = 0;\
@@ -120,8 +123,10 @@ BOOL WINAPI BeforeExit(DWORD dwCtrlType)
 }
 int main()
 {
-	//std::cin >> stepX >> stepY;
-	//ShowWindow(GetForegroundWindow(),false);
+#ifndef SHOW_WINDOWS
+	ShowWindow(GetForegroundWindow(),false);
+#endif
+	MessageBox(GetForegroundWindow(), "使用方向键移动\nF 键可加速，S 键可减速\nESC 键退出", "贪吃蛇", MB_OK);
 	SetConsoleCtrlHandler(BeforeExit, TRUE);
 	HWND hParent = ::FindWindow("Progman", "Program Manager");
 	HWND hSHELLDLL_DefView = ::FindWindowEx(hParent, NULL, "SHELLDLL_DefView", NULL);
@@ -133,12 +138,23 @@ int main()
 	}
 	if (hSysListView32 == 0)
 	{
-		MessageBox(GetForegroundWindow(), "Initialize Fail", "Error", MB_OK);
+		MessageBox(GetForegroundWindow(), "初始化失败", "错误", MB_OK);
 		return 0;
 	}
 	iconCnt = ListView_GetItemCount(hSysListView32);
 	iconPrevPos = new POINT[iconCnt];
 	CreateThread(NULL, 0, KeyProc, NULL, 0, 0);
+	DWORD processId;
+	GetWindowThreadProcessId(hSysListView32, &processId);
+	HANDLE hProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, FALSE, processId);
+	RECT rect;
+	rect.left = LVIR_ICON; rect.right = 0; rect.bottom = 0; rect.top = 0;
+	LPVOID prect = VirtualAllocEx(hProcess, NULL, sizeof(RECT), MEM_COMMIT, PAGE_READWRITE);
+	WriteProcessMemory(hProcess, prect, &rect, sizeof(RECT), NULL);
+	::SendMessage(hSysListView32, LVM_GETITEMRECT, 0, (LPARAM)prect);
+	ReadProcessMemory(hProcess, prect, &rect, sizeof(RECT), NULL);
+	VirtualFreeEx(hProcess, prect, 0, MEM_RELEASE);
+	stepX = stepY = rect.bottom - rect.top;
 	int realW = GetSystemMetrics(SM_CXFULLSCREEN);
 	int realH = GetSystemMetrics(SM_CYFULLSCREEN);
 	int blockW = realW / stepX;
@@ -147,9 +163,6 @@ int main()
 	int offsetY = (realH - blockH * stepY) / 2;
 	srand(time(0));
 	playing = true;
-	DWORD processId;
-	GetWindowThreadProcessId(hSysListView32, &processId);
-	HANDLE hProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, FALSE, processId);
 	LPVOID ori = VirtualAllocEx(hProcess, NULL, sizeof(POINT), MEM_COMMIT, PAGE_READWRITE);
 	for (int i = 0; i < iconCnt; i++)
 	{
@@ -178,8 +191,8 @@ int main()
 			if (snakeLen == iconCnt)
 			{
 				char buf[255];
-				sprintf_s(buf, "You have get %d Point, Do you want to play again?", snakeLen);
-				int ans = MessageBox(GetForegroundWindow(), buf, "Game Finish", MB_YESNO | MB_ICONQUESTION);
+				sprintf_s(buf, "你已经把图标都吃完了，想要再来一遍吗？", snakeLen);
+				int ans = MessageBox(GetForegroundWindow(), buf, "游戏结束", MB_YESNO | MB_ICONQUESTION);
 				if (ans == IDYES)
 				{
 					NewGame();
@@ -201,7 +214,9 @@ int main()
 			} while (isSnake[foodBlockX][foodBlockY] != NOT_SNAKE);
 			newFood = false;
 			ListView_SetItemPosition(hSysListView32, snakeLen, X2P(foodBlockX), Y2P(foodBlockY));
+#ifdef SHOW_WINDOWS
 			std::cout << "Food Pos:" << foodBlockX << "," << foodBlockY << std::endl;
+#endif
 		}
 		if (moveDirect != DIRECT_NONE)
 		{
@@ -214,8 +229,8 @@ int main()
 			if (isSnake[headerBlockX][headerBlockY] == SNAKE_BODY)
 			{
 				char buf[255];
-				sprintf_s(buf, "You have get %d Point, Do you want to play again?", snakeLen);
-				int ans = MessageBox(GetForegroundWindow(), buf, "Crashed", MB_YESNO | MB_ICONQUESTION);
+				sprintf_s(buf, "%d分", snakeLen);
+				int ans = MessageBox(GetForegroundWindow(), "想要重来吗？", buf, MB_YESNO | MB_ICONQUESTION);
 				if (ans == IDYES)
 				{
 					NewGame();
@@ -231,7 +246,9 @@ int main()
 			if (snakeTailIndex == 0) { snakeTailIndex = snakeLen - 1; }
 			else { snakeTailIndex--; }
 			ListView_SetItemPosition(hSysListView32, snakeHeaderIndex, X2P(headerBlockX), Y2P(headerBlockY));
+#ifdef SHOW_WINDOWS
 			std::cout << "Snake Header Pos:" << headerBlockX << "," << headerBlockY << std::endl;
+#endif
 		}
 		ListView_RedrawItems(hSysListView32, 0, iconCnt - 1);
 		::UpdateWindow(hSysListView32);
