@@ -19,7 +19,6 @@
 #define SNAKE_BODY 2
 #define SNAKE_HEADER 1
 #define NOT_SNAKE 0
-#define SHOW_WINDOWS
 #define NewGame() \
 do{\
     moveDirect = DIRECT_NONE;\
@@ -123,7 +122,7 @@ BOOL WINAPI BeforeExit(DWORD dwCtrlType)
 }
 int main()
 {
-#ifndef SHOW_WINDOWS
+#ifndef _DEBUG
 	ShowWindow(GetForegroundWindow(),false);
 #endif
 	MessageBox(GetForegroundWindow(), "使用方向键移动\nF 键可加速，S 键可减速\nESC 键退出", "贪吃蛇", MB_OK);
@@ -151,10 +150,12 @@ int main()
 	rect.left = LVIR_ICON; rect.right = 0; rect.bottom = 0; rect.top = 0;
 	LPVOID prect = VirtualAllocEx(hProcess, NULL, sizeof(RECT), MEM_COMMIT, PAGE_READWRITE);
 	WriteProcessMemory(hProcess, prect, &rect, sizeof(RECT), NULL);
-	::SendMessage(hSysListView32, LVM_GETITEMRECT, 0, (LPARAM)prect);
-	ReadProcessMemory(hProcess, prect, &rect, sizeof(RECT), NULL);
+	if ((BOOL)::SendMessage(hSysListView32, LVM_GETITEMRECT, 0, (LPARAM)prect))
+	{
+		ReadProcessMemory(hProcess, prect, &rect, sizeof(RECT), NULL);
+		stepX = stepY = rect.bottom - rect.top;
+	}
 	VirtualFreeEx(hProcess, prect, 0, MEM_RELEASE);
-	stepX = stepY = rect.bottom - rect.top;
 	int realW = GetSystemMetrics(SM_CXFULLSCREEN);
 	int realH = GetSystemMetrics(SM_CYFULLSCREEN);
 	int blockW = realW / stepX;
@@ -214,7 +215,7 @@ int main()
 			} while (isSnake[foodBlockX][foodBlockY] != NOT_SNAKE);
 			newFood = false;
 			ListView_SetItemPosition(hSysListView32, snakeLen, X2P(foodBlockX), Y2P(foodBlockY));
-#ifdef SHOW_WINDOWS
+#ifdef _DEBUG
 			std::cout << "Food Pos:" << foodBlockX << "," << foodBlockY << std::endl;
 #endif
 		}
@@ -246,11 +247,11 @@ int main()
 			if (snakeTailIndex == 0) { snakeTailIndex = snakeLen - 1; }
 			else { snakeTailIndex--; }
 			ListView_SetItemPosition(hSysListView32, snakeHeaderIndex, X2P(headerBlockX), Y2P(headerBlockY));
-#ifdef SHOW_WINDOWS
+#ifdef _DEBUG
 			std::cout << "Snake Header Pos:" << headerBlockX << "," << headerBlockY << std::endl;
 #endif
 		}
-		ListView_RedrawItems(hSysListView32, 0, iconCnt - 1);
+		//ListView_RedrawItems(hSysListView32, 0, iconCnt - 1);
 		::UpdateWindow(hSysListView32);
 		Sleep((delay - clock() + watch) > 0 ? (delay - clock() + watch) : 0);
 	}
