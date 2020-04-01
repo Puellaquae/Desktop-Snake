@@ -41,6 +41,7 @@ int delay = 100;
 int stepX = 70;
 int stepY = 70;
 bool playing = false;
+bool pause = false;
 int moveDirect = DIRECT_NONE;
 DWORD WINAPI KeyProc(LPVOID args)
 {
@@ -66,6 +67,11 @@ DWORD WINAPI KeyProc(LPVOID args)
 			moveDirect = DIRECT_DOWN;
 			while (KEY_DOWN(VK_DOWN));
 		}
+		else if (KEY_DOWN('P'))
+		{
+			pause = !pause;
+			while (KEY_DOWN('P'));
+		}
 		else if (KEY_DOWN('F'))
 		{
 			if (delay >= 10) { delay -= 10; }
@@ -78,6 +84,7 @@ DWORD WINAPI KeyProc(LPVOID args)
 		}
 		else if (KEY_DOWN(VK_ESCAPE))
 		{
+			pause = false;
 			playing = false;
 		}
 	}
@@ -123,7 +130,7 @@ BOOL WINAPI BeforeExit(DWORD dwCtrlType)
 int main()
 {
 #ifndef _DEBUG
-	ShowWindow(GetForegroundWindow(),false);
+	ShowWindow(GetForegroundWindow(), false);
 #endif
 	MessageBox(GetForegroundWindow(), "使用方向键移动\nF 键可加速，S 键可减速\nESC 键退出", "贪吃蛇", MB_OK);
 	SetConsoleCtrlHandler(BeforeExit, TRUE);
@@ -141,6 +148,13 @@ int main()
 		return 0;
 	}
 	iconCnt = ListView_GetItemCount(hSysListView32);
+	COLORREF x = ListView_GetTextColor(hSysListView32);
+	int r = GetRValue(x);
+	int g = GetGValue(x);
+	int b = GetBValue(x);
+	ListView_SetTextColor(hSysListView32, RGB(0, 0, 0));
+	::UpdateWindow(hSysListView32);
+	ListView_SetTextColor(hSysListView32, x);
 	iconPrevPos = new POINT[iconCnt];
 	CreateThread(NULL, 0, KeyProc, NULL, 0, 0);
 	DWORD processId;
@@ -184,6 +198,7 @@ int main()
 	clock_t watch;
 	while (playing)
 	{
+		while (pause);
 		watch = clock();
 		if (!newFood && headerBlockX == foodBlockX && headerBlockY == foodBlockY)
 		{
