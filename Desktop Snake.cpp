@@ -170,8 +170,8 @@ int main()
 		stepX = stepY = rect.bottom - rect.top;
 	}
 	VirtualFreeEx(hProcess, prect, 0, MEM_RELEASE);
-	int realW = GetSystemMetrics(SM_CXFULLSCREEN);
-	int realH = GetSystemMetrics(SM_CYFULLSCREEN);
+	int realW = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+	int realH = GetSystemMetrics(SM_CYVIRTUALSCREEN);
 	int blockW = realW / stepX;
 	int blockH = realH / stepY;
 	int offsetX = (realW - blockW * stepX) / 2;
