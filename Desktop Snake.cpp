@@ -37,12 +37,42 @@ do{\
 while(0)
 #define X2P(pos) (pos * stepX + offsetX)
 #define Y2P(pos) (pos * stepY + offsetY)
+const WCHAR* TEXT_RES[][2] = {
+	{TEXT("Snake"), TEXT("贪吃蛇")},
+	{
+		TEXT("Use Arrow Key To Move\nF Key Speed Up，S Key Speed Down\nESC Key Exit\nPlease Turn Off Auto Arrange Icons And Align Icons To Grid Before Playing"), 
+	    TEXT("使用方向键移动\nF 键可加速，S 键可减速\nESC 键退出\n开始前请关闭自动排列图标和将图标与网格对齐")
+	},
+	{TEXT("Error", TEXT("错误"))},
+	{TEXT("Initialization Fail"), TEXT("初始化失败")},
+	{TEXT("Game Ended"), TEXT("游戏结束")},
+	{TEXT("You've Eaten All The Icons, Want To Play Again?"), TEXT("你已经把图标都吃完了，想要再来一遍吗？")},
+	{TEXT("%d Points"), TEXT("%d分")},
+	{TEXT("Do You Want To Play Again?"), TEXT("想要重来吗？")}
+};
+#define TEXT_LANG_EN 0
+#define TEXT_LANG_CN_ZH 1
+#define TEXT_RES_TITLE 0
+#define TEXT_RES_USAGE 1
+#define TEXT_RES_ERROR 2
+#define TEXT_RES_INIT_FAIL 3
+#define TEXT_RES_GAME_OVER 4
+#define TEXT_RES_PLAY_AGAIN 5
+#define TEXT_RES_POINTS 6
+#define TEXT_RES_RETRY 7
 int delay = 100;
 int stepX = 70;
 int stepY = 70;
 bool playing = false;
 bool pause = false;
 int moveDirect = DIRECT_NONE;
+HWND hSysListView32 = NULL;
+int iconCnt = 0;
+PPOINT iconPrevPos;
+int useTextRes = TEXT_LANG_EN;
+LPCWSTR GetText(int id) {
+	return TEXT_RES[id][useTextRes];
+}
 DWORD WINAPI KeyProc(LPVOID args)
 {
 	while (true)
@@ -89,14 +119,13 @@ DWORD WINAPI KeyProc(LPVOID args)
 		}
 	}
 }
-HWND hSysListView32 = NULL;
 BOOL CALLBACK FindSysListView32(HWND hwnd, LPARAM lparam)
 {
 	TCHAR a[255];
-	if (GetClassName(hwnd, a, 255) && lstrcmp(a, _T("WorkerW")) == 0)
+	if (GetClassName(hwnd, a, 255) && lstrcmp(a, TEXT("WorkerW")) == 0)
 	{
-		HWND hSHELLDLL_DefView = ::FindWindowEx(hwnd, NULL, "SHELLDLL_DefView", NULL);
-		hSysListView32 = ::FindWindowEx(hSHELLDLL_DefView, NULL, "SysListView32", "FolderView");
+		HWND hSHELLDLL_DefView = ::FindWindowEx(hwnd, NULL, TEXT("SHELLDLL_DefView"), NULL);
+		hSysListView32 = ::FindWindowEx(hSHELLDLL_DefView, NULL, TEXT("SysListView32"), TEXT("FolderView"));
 		return hSysListView32 == 0;
 	}
 	else
@@ -104,8 +133,6 @@ BOOL CALLBACK FindSysListView32(HWND hwnd, LPARAM lparam)
 		return TRUE;
 	}
 }
-int iconCnt = 0;
-PPOINT iconPrevPos;
 void RecoveryIcon()
 {
 	for (int i = 0; i < iconCnt; i++)
@@ -132,11 +159,15 @@ int main()
 #ifndef _DEBUG
 	ShowWindow(GetForegroundWindow(), false);
 #endif
-	MessageBox(GetForegroundWindow(), "使用方向键移动\nF 键可加速，S 键可减速\nESC 键退出", "贪吃蛇", MB_OK);
+	LANGID langId = GetUserDefaultUILanguage();
+	if (langId == MAKELANGID(LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED)) {
+		useTextRes = TEXT_LANG_CN_ZH;
+	}
+	MessageBox(GetForegroundWindow(), GetText(TEXT_RES_USAGE), GetText(TEXT_RES_TITLE), MB_OK);
 	SetConsoleCtrlHandler(BeforeExit, TRUE);
-	HWND hParent = ::FindWindow("Progman", "Program Manager");
-	HWND hSHELLDLL_DefView = ::FindWindowEx(hParent, NULL, "SHELLDLL_DefView", NULL);
-	hSysListView32 = ::FindWindowEx(hSHELLDLL_DefView, NULL, "SysListView32", "FolderView");
+	HWND hParent = ::FindWindow(TEXT("Progman"), TEXT("Program Manager"));
+	HWND hSHELLDLL_DefView = ::FindWindowEx(hParent, NULL, TEXT("SHELLDLL_DefView"), NULL);
+	hSysListView32 = ::FindWindowEx(hSHELLDLL_DefView, NULL, TEXT("SysListView32"), TEXT("FolderView"));
 	if (hSysListView32 == 0)
 	{
 		HWND hDesktop = GetDesktopWindow();
@@ -144,7 +175,7 @@ int main()
 	}
 	if (hSysListView32 == 0)
 	{
-		MessageBox(GetForegroundWindow(), "初始化失败", "错误", MB_OK);
+		MessageBox(GetForegroundWindow(), GetText(TEXT_RES_INIT_FAIL), GetText(TEXT_RES_ERROR), MB_OK);
 		return 0;
 	}
 	iconCnt = ListView_GetItemCount(hSysListView32);
@@ -206,9 +237,7 @@ int main()
 			std::cout << snakeLen << std::endl;
 			if (snakeLen == iconCnt)
 			{
-				char buf[255];
-				sprintf_s(buf, "你已经把图标都吃完了，想要再来一遍吗？", snakeLen);
-				int ans = MessageBox(GetForegroundWindow(), buf, "游戏结束", MB_YESNO | MB_ICONQUESTION);
+				int ans = MessageBox(GetForegroundWindow(), GetText(TEXT_RES_PLAY_AGAIN), GetText(TEXT_RES_GAME_OVER), MB_YESNO | MB_ICONQUESTION);
 				if (ans == IDYES)
 				{
 					NewGame();
@@ -244,9 +273,9 @@ int main()
 				+ (moveDirect == DIRECT_DOWN ? 1 : moveDirect == DIRECT_UP ? -1 : 0) + blockH) % blockH;
 			if (isSnake[headerBlockX][headerBlockY] == SNAKE_BODY)
 			{
-				char buf[255];
-				sprintf_s(buf, "%d分", snakeLen);
-				int ans = MessageBox(GetForegroundWindow(), "想要重来吗？", buf, MB_YESNO | MB_ICONQUESTION);
+				WCHAR buf[255];
+				swprintf_s(buf, GetText(TEXT_RES_POINTS), snakeLen);
+				int ans = MessageBox(GetForegroundWindow(), GetText(TEXT_RES_RETRY), buf, MB_YESNO | MB_ICONQUESTION);
 				if (ans == IDYES)
 				{
 					NewGame();
